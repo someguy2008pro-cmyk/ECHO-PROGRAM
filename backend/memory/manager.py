@@ -1,12 +1,22 @@
 
 import json
 import os
+import unicodedata
 from pathlib import Path
 from datetime import datetime, timezone
 
 MEMORY_FILE = Path(
     os.getenv("ECHO_MEMORY_FILE", "data/memories.json")
 )
+
+
+def normalize(text):
+    text = text.casefold()
+    text = unicodedata.normalize("NFD", text)
+    return "".join(
+        char for char in text
+        if unicodedata.category(char) != "Mn"
+    )
 
 
 def load_memories():
@@ -32,7 +42,14 @@ def save_memory(content, category="general"):
     memories = load_memories()
 
     memory = {
-        "memory_id": str(len(memories) + 1),
+        "memory_id": str(
+            max(
+                [int(m.get("memory_id", 0))
+                 for m in memories
+                 if str(m.get("memory_id", "")).isdigit()]
+                + [0]
+            ) + 1
+        ),
         "content": content,
         "category": category,
         "status": "approved",
@@ -61,4 +78,38 @@ def save_memory(content, category="general"):
 
 def get_memories():
     return load_memories()
-  
+
+
+def search_memories(query):
+    query = normalize(query.strip())
+
+    if not query:
+        return []
+
+    keywords = set(query.split())
+    results = []
+
+    for memory in load_memories():
+        if memory.get("status") != "approved":
+            continue
+
+        content = normalize(memory.get("content", ""))
+        category = normalize(memory.get("category", ""))
+
+        score = sum(
+            1 for word in keywords
+            if word in content or word in category
+        )
+
+        if score > 0:
+            results.append({
+                **memory,
+                "relevance_score": score
+            })
+
+    return sorted(
+        results,
+        key=lambda item: item["relevance_score"],
+        reverse=True
+    )
+    
