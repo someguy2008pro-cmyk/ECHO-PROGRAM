@@ -4,10 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from ai.adapter import generate_reply
+from memory.manager import save_memory, get_memories
 
 app = FastAPI(
     title="PROJECT ECHO",
-    version="0.4.0"
+    version="0.5.0"
 )
 
 app.add_middleware(
@@ -23,11 +24,16 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class MemoryRequest(BaseModel):
+    content: str
+    category: str = "general"
+
+
 @app.get("/")
 def home():
     return {
         "system": "PROJECT ECHO",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "status": "online"
     }
 
@@ -36,7 +42,7 @@ def home():
 def health():
     return {
         "status": "healthy",
-        "ai_connected": True
+        "ai_configured": bool(__import__("os").getenv("OPENAI_API_KEY"))
     }
 
 
@@ -70,3 +76,31 @@ def chat(request: ChatRequest):
             status_code=502,
             detail="Không thể nhận phản hồi từ AI."
         )
+
+
+@app.post("/memory")
+def create_memory(request: MemoryRequest):
+    try:
+        memory = save_memory(
+            request.content,
+            request.category
+        )
+
+        return {
+            "status": "saved",
+            "memory": memory
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+
+@app.get("/memory")
+def list_memories():
+    return {
+        "memories": get_memories()
+    }
+    
