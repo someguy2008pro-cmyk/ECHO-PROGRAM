@@ -13,10 +13,11 @@ MEMORY_FILE = Path(
 def normalize(text):
     text = text.casefold()
     text = unicodedata.normalize("NFD", text)
+
     return "".join(
         char for char in text
         if unicodedata.category(char) != "Mn"
-    )
+    ).strip()
 
 
 def load_memories():
@@ -33,23 +34,47 @@ def load_memories():
         return []
 
 
+def find_duplicate(content):
+    target = normalize(content)
+
+    if not target:
+        return None
+
+    for memory in load_memories():
+        existing = normalize(memory.get("content", ""))
+
+        if target == existing:
+            return memory
+
+    return None
+
+
 def save_memory(content, category="general"):
     content = content.strip()
 
     if not content:
         raise ValueError("Memory cannot be empty.")
 
+    duplicate = find_duplicate(content)
+
+    if duplicate:
+        return {
+            "status": "duplicate",
+            "existing_memory": duplicate
+        }
+
     memories = load_memories()
 
+    next_id = max(
+        [
+            int(m["memory_id"])
+            for m in memories
+            if str(m.get("memory_id", "")).isdigit()
+        ] + [0]
+    ) + 1
+
     memory = {
-        "memory_id": str(
-            max(
-                [int(m.get("memory_id", 0))
-                 for m in memories
-                 if str(m.get("memory_id", "")).isdigit()]
-                + [0]
-            ) + 1
-        ),
+        "memory_id": str(next_id),
         "content": content,
         "category": category,
         "status": "approved",
@@ -73,7 +98,10 @@ def save_memory(content, category="general"):
             indent=2
         )
 
-    return memory
+    return {
+        "status": "saved",
+        "memory": memory
+    }
 
 
 def get_memories():
@@ -81,7 +109,7 @@ def get_memories():
 
 
 def search_memories(query):
-    query = normalize(query.strip())
+    query = normalize(query)
 
     if not query:
         return []
