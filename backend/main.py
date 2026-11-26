@@ -4,7 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from ai.adapter import generate_reply
-from memory.manager import save_memory, get_memories
+from memory.manager import (
+    save_memory,
+    get_memories,
+    search_memories
+)
 
 app = FastAPI(
     title="PROJECT ECHO",
@@ -102,5 +106,20 @@ def create_memory(request: MemoryRequest):
 def list_memories():
     return {
         "memories": get_memories()
+    }
+    
+
+class MemorySearchRequest(BaseModel):
+    query: str
+
+
+@app.post("/memory/search")
+def search_memory_api(request: MemorySearchRequest):
+    results = search_memories(request.query)
+
+    return {
+        "query": request.query,
+        "count": len(results),
+        "results": results
     }
     
