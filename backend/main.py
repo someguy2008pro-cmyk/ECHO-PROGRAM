@@ -1,4 +1,6 @@
 
+from typing import Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -9,7 +11,9 @@ from memory.manager import (
     get_memories,
     search_memories,
     get_pending_memories,
-    approve_memory
+    approve_memory,
+    update_memory,
+    delete_memory
 )
 
 app = FastAPI(
@@ -38,6 +42,11 @@ class MemoryRequest(BaseModel):
 
 class MemorySearchRequest(BaseModel):
     query: str
+
+
+class MemoryUpdateRequest(BaseModel):
+    content: Optional[str] = None
+    category: Optional[str] = None
 
 
 @app.get("/")
@@ -76,10 +85,7 @@ def chat(request: ChatRequest):
             "response": reply
         }
     except RuntimeError as error:
-        raise HTTPException(
-            status_code=503,
-            detail=str(error)
-        )
+        raise HTTPException(status_code=503, detail=str(error))
     except Exception:
         raise HTTPException(
             status_code=502,
@@ -95,17 +101,12 @@ def create_memory(request: MemoryRequest):
             request.category
         )
     except ValueError as error:
-        raise HTTPException(
-            status_code=400,
-            detail=str(error)
-        )
+        raise HTTPException(status_code=400, detail=str(error))
 
 
 @app.get("/memory")
 def list_memories():
-    return {
-        "memories": get_memories()
-    }
+    return {"memories": get_memories()}
 
 
 @app.post("/memory/search")
@@ -121,14 +122,54 @@ def search_memory_api(request: MemorySearchRequest):
 
 @app.get("/memory/pending")
 def list_pending_memories():
-    return {
-        "pending_memories": get_pending_memories()
-    }
+    return {"pending_memories": get_pending_memories()}
 
 
 @app.post("/memory/{memory_id}/approve")
 def approve_memory_api(memory_id: str):
     result = approve_memory(memory_id)
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy ký ức."
+        )
+
+    return result
+
+
+@app.put("/memory/{memory_id}")
+def update_memory_api(
+    memory_id: str,
+    request: MemoryUpdateRequest
+):
+    if request.content is None and request.category is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Không có nội dung cập nhật."
+        )
+
+    try:
+        result = update_memory(
+            memory_id,
+            request.content,
+            request.category
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy ký ức."
+        )
+
+    return result
+
+
+@app.delete("/memory/{memory_id}")
+def delete_memory_api(memory_id: str):
+    result = delete_memory(memory_id)
 
     if result is None:
         raise HTTPException(
