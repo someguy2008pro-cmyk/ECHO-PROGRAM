@@ -114,6 +114,74 @@ def search_memories(query):
     if not query:
         return []
 
+def update_memory(memory_id, content=None, category=None):
+    memories = load_memories()
+
+    for memory in memories:
+        if memory.get("memory_id") == str(memory_id):
+            if content is not None:
+                content = content.strip()
+
+                if not content:
+                    raise ValueError("Memory cannot be empty.")
+
+                duplicate = find_duplicate(content)
+
+                if duplicate and duplicate.get("memory_id") != str(memory_id):
+                    return {
+                        "status": "duplicate",
+                        "existing_memory": duplicate
+                    }
+
+                memory["content"] = content
+
+            if category is not None:
+                memory["category"] = category
+
+            memory["updated_at"] = datetime.now(
+                timezone.utc
+            ).isoformat()
+
+            with MEMORY_FILE.open("w", encoding="utf-8") as file:
+                json.dump(
+                    memories,
+                    file,
+                    ensure_ascii=False,
+                    indent=2
+                )
+
+            return {
+                "status": "updated",
+                "memory": memory
+            }
+
+    return None
+
+
+def delete_memory(memory_id):
+    memories = load_memories()
+
+    updated_memories = [
+        memory for memory in memories
+        if memory.get("memory_id") != str(memory_id)
+    ]
+
+    if len(updated_memories) == len(memories):
+        return None
+
+    with MEMORY_FILE.open("w", encoding="utf-8") as file:
+        json.dump(
+            updated_memories,
+            file,
+            ensure_ascii=False,
+            indent=2
+        )
+
+    return {
+        "status": "deleted",
+        "memory_id": str(memory_id)
+    }
+    
     keywords = set(query.split())
     results = []
 
