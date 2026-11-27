@@ -141,3 +141,97 @@ def search_memories(query):
         reverse=True
     )
     
+
+def propose_memory(content, category="general"):
+    content = content.strip()
+
+    if not content:
+        raise ValueError("Memory cannot be empty.")
+
+    duplicate = find_duplicate(content)
+
+    if duplicate:
+        return {
+            "status": "duplicate",
+            "existing_memory": duplicate
+        }
+
+    memories = load_memories()
+
+    next_id = max(
+        [
+            int(m["memory_id"])
+            for m in memories
+            if str(m.get("memory_id", "")).isdigit()
+        ] + [0]
+    ) + 1
+
+    proposal = {
+        "memory_id": str(next_id),
+        "content": content,
+        "category": category,
+        "status": "pending",
+        "created_at": datetime.now(
+            timezone.utc
+        ).isoformat()
+    }
+
+    memories.append(proposal)
+
+    MEMORY_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    with MEMORY_FILE.open("w", encoding="utf-8") as file:
+        json.dump(
+            memories,
+            file,
+            ensure_ascii=False,
+            indent=2
+        )
+
+    return {
+        "status": "pending",
+        "memory": proposal
+    }
+
+
+def get_pending_memories():
+    return [
+        memory for memory in load_memories()
+        if memory.get("status") == "pending"
+    ]
+
+
+def approve_memory(memory_id):
+    memories = load_memories()
+
+    for memory in memories:
+        if memory.get("memory_id") == str(memory_id):
+            if memory.get("status") == "approved":
+                return {
+                    "status": "already_approved",
+                    "memory": memory
+                }
+
+            memory["status"] = "approved"
+            memory["approved_at"] = datetime.now(
+                timezone.utc
+            ).isoformat()
+
+            with MEMORY_FILE.open("w", encoding="utf-8") as file:
+                json.dump(
+                    memories,
+                    file,
+                    ensure_ascii=False,
+                    indent=2
+                )
+
+            return {
+                "status": "approved",
+                "memory": memory
+            }
+
+    return None
+    
