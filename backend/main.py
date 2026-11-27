@@ -1,3 +1,7 @@
+import os
+import secrets
+
+from fastapi import Header
 from fastapi.responses import JSONResponse
 from typing import Optional
 
@@ -20,6 +24,23 @@ app = FastAPI(
     title="PROJECT ECHO",
     version="0.5.2"
 )
+def verify_admin_token(
+    x_echo_token: str = Header(default="")
+):
+    expected = os.getenv("ECHO_ADMIN_TOKEN")
+
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin token chưa được cấu hình."
+        )
+
+    if not secrets.compare_digest(x_echo_token, expected):
+        raise HTTPException(
+            status_code=401,
+            detail="Token không hợp lệ."
+        )
+
 
 app.add_middleware(
     CORSMiddleware,
