@@ -114,6 +114,33 @@ def search_memories(query):
     if not query:
         return []
 
+    keywords = set(query.split())
+    results = []
+
+    for memory in load_memories():
+        if memory.get("status") != "approved":
+            continue
+
+        content = normalize(memory.get("content", ""))
+        category = normalize(memory.get("category", ""))
+
+        score = sum(
+            1 for word in keywords
+            if word in content or word in category
+        )
+
+        if score > 0:
+            results.append({
+                **memory,
+                "relevance_score": score
+            })
+
+    return sorted(
+        results,
+        key=lambda item: item["relevance_score"],
+        reverse=True
+    )
+
 def update_memory(memory_id, content=None, category=None):
     memories = load_memories()
 
@@ -181,34 +208,6 @@ def delete_memory(memory_id):
         "status": "deleted",
         "memory_id": str(memory_id)
     }
-    
-    keywords = set(query.split())
-    results = []
-
-    for memory in load_memories():
-        if memory.get("status") != "approved":
-            continue
-
-        content = normalize(memory.get("content", ""))
-        category = normalize(memory.get("category", ""))
-
-        score = sum(
-            1 for word in keywords
-            if word in content or word in category
-        )
-
-        if score > 0:
-            results.append({
-                **memory,
-                "relevance_score": score
-            })
-
-    return sorted(
-        results,
-        key=lambda item: item["relevance_score"],
-        reverse=True
-    )
-    
 
 def propose_memory(content, category="general"):
     content = content.strip()
