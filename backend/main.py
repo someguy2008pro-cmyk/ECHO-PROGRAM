@@ -1,4 +1,4 @@
-
+from fastapi.responses import JSONResponse
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -178,3 +178,18 @@ def delete_memory_api(memory_id: str):
         )
 
     return result
+
+
+@app.get("/memory/backup")
+def backup_memory():
+    return JSONResponse(
+        content={
+            "system": "PROJECT ECHO",
+            "backup_version": "1.0",
+            "memories": get_memories()
+        },
+        headers={
+            "Content-Disposition":
+                'attachment; filename="echo-memory-backup.json"'
+        }
+    )
