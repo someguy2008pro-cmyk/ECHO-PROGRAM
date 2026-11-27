@@ -5,7 +5,7 @@ from fastapi import Header
 from fastapi.responses import JSONResponse
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -115,7 +115,10 @@ def chat(request: ChatRequest):
 
 
 @app.post("/memory")
-def create_memory(request: MemoryRequest):
+def create_memory(
+    request: MemoryRequest,
+    _: None = Depends(verify_admin_token)
+):
     try:
         return propose_memory(
             request.content,
@@ -126,12 +129,17 @@ def create_memory(request: MemoryRequest):
 
 
 @app.get("/memory")
-def list_memories():
+def list_memories(
+    _: None = Depends(verify_admin_token)
+):
     return {"memories": get_memories()}
 
 
 @app.post("/memory/search")
-def search_memory_api(request: MemorySearchRequest):
+def search_memory_api(
+    request: MemorySearchRequest,
+    _: None = Depends(verify_admin_token)
+):
     results = search_memories(request.query)
 
     return {
@@ -142,12 +150,17 @@ def search_memory_api(request: MemorySearchRequest):
 
 
 @app.get("/memory/pending")
-def list_pending_memories():
+def list_pending_memories(
+    _: None = Depends(verify_admin_token)
+):
     return {"pending_memories": get_pending_memories()}
 
 
 @app.post("/memory/{memory_id}/approve")
-def approve_memory_api(memory_id: str):
+def approve_memory_api(
+    memory_id: str,
+    _: None = Depends(verify_admin_token)
+):
     result = approve_memory(memory_id)
 
     if result is None:
@@ -162,7 +175,8 @@ def approve_memory_api(memory_id: str):
 @app.put("/memory/{memory_id}")
 def update_memory_api(
     memory_id: str,
-    request: MemoryUpdateRequest
+    request: MemoryUpdateRequest,
+    _: None = Depends(verify_admin_token)
 ):
     if request.content is None and request.category is None:
         raise HTTPException(
@@ -189,7 +203,10 @@ def update_memory_api(
 
 
 @app.delete("/memory/{memory_id}")
-def delete_memory_api(memory_id: str):
+def delete_memory_api(
+    memory_id: str,
+    _: None = Depends(verify_admin_token)
+):
     result = delete_memory(memory_id)
 
     if result is None:
@@ -202,7 +219,9 @@ def delete_memory_api(memory_id: str):
 
 
 @app.get("/memory/backup")
-def backup_memory():
+def backup_memory(
+    _: None = Depends(verify_admin_token)
+):
     return JSONResponse(
         content={
             "system": "PROJECT ECHO",
